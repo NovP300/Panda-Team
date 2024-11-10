@@ -13,6 +13,7 @@
 #include <cstring>
 #include <set>
 #include <cctype> 
+#include <numeric> 
 
 #ifdef _WIN32
 #include <windows.h>
@@ -367,10 +368,9 @@ public:
 
         for (int i = 0; i < numberOfLines; ++i)
         {
-            int randomNumber = randomGen.generateRandomNumber(1, 10000);   // Генерация случайного числа
             std::string randomString = randomGen.generateRandomString(1000);    // Генерация случайной строки длиной 1000 символов
 
-            file << randomNumber << " " << randomString << std::endl;
+            file << randomString;
         }
 
         file.close();
@@ -519,15 +519,26 @@ void iteration_func(const std::filesystem::path& directorypath, Logger& logfile,
 
 
 
-void createFragmentedFile(const std::string& directory, FileManager& fileManager, int iterations = 5)
+void createFragmentedFile(const std::string& directory, FileManager& fileManager, Logger& logger, int iterations = 4)
 {
     // Определяем размеры файлов и количество
-    std::vector<size_t> fileSizes = { 100 * 1024, 200 * 1024, 512 * 1024 }; // Размеры в байтах
-    std::vector<int> fileCounts = { 25, 15, 30 }; // Количество файлов для каждого размера
+    std::vector<size_t> fileSizes = { 100, 1024, 300, 1024 * 2, 400, 1024 * 3, 500, 1024 * 5, 1000, 1024 * 7 }; // Размеры в байтах (размер кластера - 4 КБ)
+    std::vector<int> fileCounts = { 5, 15, 10, 15, 8, 15, 5, 7, 9, 12 }; // Количество файлов для каждого размера
     int fileCounter = 1;
+
+    // Имя файла для фрагментации
+    std::string largeFileName = directory + "/fragmented_file.txt";
+    size_t largeFileSize = 200 * 1024 * 1024; // Размер в байтах
+
+    // Создаем фрагментированный файл один раз в начале
+    if (!std::filesystem::exists(largeFileName) && fileManager.createFile(largeFileName))
+    {
+        logger.log(Logger::INFO, "Создан файл для накопления фрагментированных данных: " + largeFileName);
+    }
 
     for (int iter = 0; iter < iterations; ++iter)
     {
+        std::cout << "Итерация " << iter + 1 << std::endl;
         // Шаг 1: Создание файлов
         for (size_t i = 0; i < fileSizes.size(); ++i)
         {
@@ -545,29 +556,33 @@ void createFragmentedFile(const std::string& directory, FileManager& fileManager
         std::vector<std::string> files;
         for (const auto& entry : std::filesystem::directory_iterator(directory))
         {
-            if (entry.is_regular_file())
+            if (entry.is_regular_file() && entry.path().string() != largeFileName) // Исключаем fragmented_file.txt
             {
                 files.push_back(entry.path().string());
             }
         }
 
+        // Перемешиваем список и удаляем случайные файлы
         std::shuffle(files.begin(), files.end(), std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
 
-        int filesToRemove = 15 + (iter * 5); // Увеличиваем число удалений с каждой итерацией
+        int filesToRemove = 20 + (iter * 5); // Увеличиваем число удалений с каждой итерацией
         for (int i = 0; i < filesToRemove && i < files.size(); ++i)
         {
-            fileManager.deleteFile(files[i]);
+            std::remove(files[i].c_str());
         }
-    }
 
-    // Завершающий этап: создание большого файла
-    std::string largeFileName = directory + "/fragmented_file.txt";
-    size_t largeFileSize = 200 * 1024 * 1024; // Размер в байтах
-    if (fileManager.createFile(largeFileName))
-    {
-        fileManager.fillFileWithRandomData(largeFileName, largeFileSize/1000); // Заполняем файл до 200 МБ
+        // Шаг 3: Добавление данных в fragmented_file.txt
+        fileManager.fillFileWithRandomData(largeFileName, (largeFileSize / iterations) / 800); // Добавляем данные на каждой итерации
+
+        std::cout << "Создано - " << std::reduce(fileCounts.begin(), fileCounts.end()) << " файлов;     ";
+        std::cout << "Удалено - " << filesToRemove << " файлов" << std::endl;
     }
+    fileManager.fillFileWithRandomData(largeFileName, (largeFileSize / 100 - largeFileSize / 800)); // Добавляем данные на каждой итерации
+
 }
+
+
+
 
 
 
@@ -707,7 +722,146 @@ public:
         }
     }
 };
+
+
+
+
+class winMounter {
+private:
+    std::string lastVdiskPath; // Хранит путь последнего смонтированного диска
+    std::string mountedDriveLetter; //Хранит букву смонтированного диска
+    std::vector<char> existingDriveLetters; //Хранит буквы существующих дисков
+public:
+    // Метод для получения всех свободных букв дисков
+    bool getFreeDriveLetters(std::vector<char>& freeDriveLetters) {
+        DWORD drives = GetLogicalDrives(); // Получаем битовую маску логических дисков
+        if (drives == 0) {
+            std::cerr << "Не удалось получить логические диски." << std::endl;
+            return false;
+        }
+
+        for (char drive = 'A'; drive <= 'Z'; ++drive) {
+            // Проверяем, занята ли эта буква диска
+            if ((drives & (1 << (drive - 'A'))) == 0) { // Если буква свободна
+                if (drive != 'C') { // Игнорируем диск C
+                    freeDriveLetters.push_back(drive);
+                }
+            }
+        }
+
+        if (freeDriveLetters.empty()) {
+            std::cerr << "Нет свободных букв для монтирования." << std::endl;
+            return false;
+        }
+
+        return true;
+    }
+
+    // Метод для монтирования виртуального диска
+    bool mount() {
+        std::vector<char> freeDriveLetters;
+
+        // Получаем все свободные буквы дисков
+        if (!getFreeDriveLetters(freeDriveLetters)) {
+            return false;
+        }
+
+        // Выбираем первую свободную букву
+        mountedDriveLetter = freeDriveLetters[0];
+
+        std::string vdiskPath;
+        std::cout << "Укажите путь до образа виртуального диска: "; // Вводим путь до образа
+        std::cin >> vdiskPath;
+
+        lastVdiskPath = vdiskPath; // Сохраняем путь к смонтированному диску
+
+        std::string command = "diskpart /s mount_script.txt";
+
+        // Создаем временный файл с командами для diskpart
+        std::ofstream script("mount_script.txt");
+        if (script.is_open()) {
+            script << "select vdisk file=" << vdiskPath << "\"\n";
+            script << "attach vdisk\n";
+            script << "assign letter=" << mountedDriveLetter << "\n";  // Присваиваем букву для монтирования
+            script.close();
+        }
+        else {
+            std::cerr << "Не удалось создать скрипт для diskpart." << std::endl;
+            return false;
+        }
+
+        // Выполняем команду
+        int result = system(command.c_str());
+
+        // Удаляем временный файл
+        std::remove("mount_script.txt");
+        return result == 0; // Возвращаем true, если команда выполнена успешно
+    }
+
+    // Метод для очистки смонтированного диска
+    bool cleaner() {
+        if (mountedDriveLetter.empty()) {
+            std::cerr << "Нет смонтированного диска для очистки." << std::endl;
+            return false;
+        }
+
+        std::string command = "diskpart /s clean_script.txt";
+
+        // Создаем временный файл с командами для diskpart
+        std::ofstream script("clean_script.txt");
+        if (script.is_open()) {
+            script << "select volume " << mountedDriveLetter << "\n"; // Выбор тома
+            script << "clean all\n"; // Очистка диска
+            script.close();
+        }
+        else {
+            std::cerr << "Не удалось создать скрипт для diskpart." << std::endl;
+            return false;
+        }
+
+        // Выполняем команду
+        int result = system(command.c_str());
+
+        // Удаляем временный файл
+        std::remove("clean_script.txt");
+        return result == 0; // Возвращаем true, если команда выполнена успешно
+    }
+
+    // Метод для отмонтирования диска
+    bool unmount() {
+        if (mountedDriveLetter.empty()) {
+            std::cerr << "Нет смонтированного диска для отмонтирования." << std::endl;
+            return false;
+        }
+
+        std::string command = "diskpart /s unmount_script.txt";
+
+        // Создаем временный файл с командами для diskpart
+        std::ofstream script("unmount_script.txt");
+        if (script.is_open()) {
+            script << "select vdisk file=" << lastVdiskPath << "\"\n";
+            script << "detach vdisk\n";
+            script.close();
+        }
+        else {
+            std::cerr << "Не удалось создать скрипт для diskpart." << std::endl;
+            return false;
+        }
+
+        // Выполняем команду
+        int result = system(command.c_str());
+
+        // Удаляем временный файл
+        std::remove("unmount_script.txt");
+        mountedDriveLetter.clear(); // Очищаем букву после отмонтирования
+        return result == 0; // Возвращаем true, если команда выполнена успешно
+    }
+};
+
+
 #endif // _WIN32
+
+
 
 #ifdef __unix__
 /** \brief Класс для форматирования диска на Linux

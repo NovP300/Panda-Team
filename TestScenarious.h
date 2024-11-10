@@ -3,6 +3,7 @@
 
 #include "DataAccessLibConnect.h"
 #include <iostream>
+#include <cwchar>
 
 void ErrorCheck();
 void PrintStorageType(StorageType type);
@@ -394,8 +395,20 @@ int Dir(FileHandle fileObject, FileSystemHandle fileSystem)
                             NumberOfFile++;
                             int fileNameLength = GetFileNameW(dirHandle, NULL);
                             WCHAR* fileName = new WCHAR[fileNameLength + 1];
+
+
                             GetFileNameW(dirHandle, fileName); // Запоминаем имя файла через массив
-                            std::wcout << L"\t" << fileName << L"  " << std::endl; // Выводим имя файла как wstring
+
+                            size_t length = wcslen(fileName) + 1;
+                            char* fileNameChar = new char[length];
+                            size_t convertedChars = 0;
+
+                            wcstombs_s(&convertedChars, fileNameChar, length, fileName, length-1);
+
+                    
+
+                            //std::wcout << L"\t" << fileName << L"  " << std::endl; // Выводим имя файла как wstring
+                            std::cout << "\t" << fileNameChar << " " << std::endl;
                         }
                     }
                 }

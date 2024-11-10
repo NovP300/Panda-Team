@@ -246,7 +246,7 @@ public:
             if (createDirectory(subDir.string())) {
                 createdCount++;
                 // Рекурсивно создаем вложенные директории
-                createdCount += createNestedDirectories(subDir, maxDepth - 1, currentBranches);
+                createdCount += createNestedDirectories(subDir, maxDepth - 1, maxBranches);
             }
         }
         return createdCount;
@@ -444,94 +444,31 @@ std::string filetype(int randomness) //свич для рандомизации 
     }
 }
 
+
 void iteration_func(const std::filesystem::path& directorypath, Logger& logfile, RandomGenerator& generator, FileManager& fileManager)
 {
-    //logfile.log(Logger::INFO, "Зашел в итератор");
-    using directory_iterator = std::filesystem::directory_iterator;
-
-    std::string fileName;
-    std::string randomStr;
-    int random_number;
-
-
-    for (const auto& dirEntry : directory_iterator(directorypath))
-    {
-        logfile.log(Logger::DEBUG, "Обработка элемента: " + dirEntry.path().u8string());
-
-        // Проверка на системные и скрытые папки
-        auto status = std::filesystem::status(dirEntry);
-        if ((status.permissions() & std::filesystem::perms::owner_read) == std::filesystem::perms::none ||
-            dirEntry.path().filename() == "$RECYCLE.BIN" ||
-            dirEntry.path().filename() == "System Volume Information" ||
-            dirEntry.path().filename() == "Ngc")
-        {
-            logfile.log(Logger::INFO, "Пропуск системной или скрытой директории: " + dirEntry.path().string());
-            continue; // не работает зараза
-        }
-
-        // Проверка на существование директории и доступность для чтения
-        if (!exists(dirEntry) || !is_directory(dirEntry))
-        {
-            logfile.log(Logger::ERR, "Элемент не является доступной директорией: " + dirEntry.path().u8string());
-            continue;
-        }
-
-        logfile.log(Logger::DEBUG, "Директория найдена: " + dirEntry.path().u8string());
-
-        // Создание файлов в случайных подкаталогах
-        if (generator.generateRandomNumber(0, 4) != 0)
-        {
-            random_number = generator.generateRandomNumber(1, 10);
-            randomStr = generator.generateRandomString(random_number) + filetype(random_number % 6);
-            fileName = (dirEntry.path() / std::filesystem::u8path(randomStr)).u8string();
-
-            //logfile.log(Logger::DEBUG, "Создание файла с именем: " + fileName);
-
-            try {
-                fileManager.createFile(fileName);
-            }
-            catch (const std::exception& e) {
-                logfile.log(Logger::ERR, "Ошибка создания файла: " + fileName + ". Ошибка: " + e.what());
-                continue;
-            }
-
-            randomStr = generator.generateRandomString(random_number);
-
-            try {
-                if (generator.generateRandomNumber(0, 15) == 2) {
-                    fileManager.fillFileWithRandomData(fileName, random_number);
-                }
-                else {
-                    fileManager.fillFileWithRandomData(fileName, random_number);
-                }
-                logfile.log(Logger::DEBUG, "Файл заполнен данными: " + fileName);
-            }
-            catch (const std::exception& e) {
-                logfile.log(Logger::ERR, "Ошибка при записи в файл: " + fileName + ". Ошибка: " + e.what());
-                continue;
-            }
-
-            // Рекурсивный вызов для подкаталогов
-            iteration_func(dirEntry, logfile, generator, fileManager);
-        }
-    }
-}
-
-
-void iteration_func1(const std::filesystem::path& directorypath, Logger& logfile, RandomGenerator& generator, FileManager& fileManager)
-{
-    // Используем recursive_directory_iterator вместо directory_iterator
     using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
 
     std::string fileName;
     std::string randomStr;
     int random_number;
 
-    for (const auto& dirEntry : recursive_directory_iterator(directorypath))
+    // Создаем итератор вручную, чтобы иметь доступ к методу disable_recursion_pending
+    for (auto iter = recursive_directory_iterator(directorypath), end = recursive_directory_iterator(); iter != end; ++iter)
     {
+        const auto& dirEntry = *iter; // Получаем текущий элемент
         logfile.log(Logger::DEBUG, "Обработка элемента: " + dirEntry.path().u8string());
+        auto currentPath = dirEntry.path().u8string();
 
-        // Проверка на системные и скрытые папки
+        // Проверка на системные каталоги
+        if (currentPath.find("$RECYCLE.BIN") != std::string::npos || currentPath.find("System Volume Information") != std::string::npos)
+        {
+            logfile.log(Logger::INFO, "Пропуск системного каталога или файла: " + currentPath);
+            iter.disable_recursion_pending(); // Отключаем рекурсию для текущего итератора
+            continue;
+        }
+
+        // Проверка на скрытые и системные папки
         auto status = std::filesystem::status(dirEntry);
         if ((status.permissions() & std::filesystem::perms::owner_read) == std::filesystem::perms::none ||
             dirEntry.path().filename() == "$RECYCLE.BIN" ||
@@ -539,7 +476,7 @@ void iteration_func1(const std::filesystem::path& directorypath, Logger& logfile
             dirEntry.path().filename() == "Ngc")
         {
             logfile.log(Logger::INFO, "Пропуск системной или скрытой директории: " + dirEntry.path().u8string());
-            continue; // теперь это будет корректно пропускать системные файлы
+            continue; // Пропуск системных файлов и папок
         }
 
         // Проверка на существование директории и доступность для чтения
@@ -549,7 +486,7 @@ void iteration_func1(const std::filesystem::path& directorypath, Logger& logfile
             continue;
         }
 
-        logfile.log(Logger::DEBUG, "Директория найдена: " + dirEntry.path().u8string());
+        //logfile.log(Logger::DEBUG, "Директория найдена: " + dirEntry.path().u8string());
 
         // Создание файлов в случайных подкаталогах
         if (generator.generateRandomNumber(0, 4) != 0)
@@ -562,7 +499,7 @@ void iteration_func1(const std::filesystem::path& directorypath, Logger& logfile
                 fileManager.createFile(fileName);
             }
             catch (const std::exception& e) {
-                logfile.log(Logger::ERR, "Ошибка создания файла: " + fileName + ". Ошибка: " + e.what());
+                //logfile.log(Logger::ERR, "Ошибка создания файла: " + fileName + ". Ошибка: " + e.what());
                 continue;
             }
 
@@ -570,15 +507,16 @@ void iteration_func1(const std::filesystem::path& directorypath, Logger& logfile
 
             try {
                 fileManager.fillFileWithRandomData(fileName, random_number);
-                logfile.log(Logger::DEBUG, "Файл заполнен данными: " + fileName);
+                //logfile.log(Logger::DEBUG, "Файл заполнен данными: " + fileName);
             }
             catch (const std::exception& e) {
-                logfile.log(Logger::ERR, "Ошибка при записи в файл: " + fileName + ". Ошибка: " + e.what());
+                //logfile.log(Logger::ERR, "Ошибка при записи в файл: " + fileName + ". Ошибка: " + e.what());
                 continue;
             }
         }
     }
 }
+
 
 
 void createFragmentedFile(const std::string& directory, FileManager& fileManager, int iterations = 5)

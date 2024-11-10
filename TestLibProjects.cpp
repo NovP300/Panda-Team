@@ -64,19 +64,19 @@ void FillDiskFunction() {
     std::cin >> directorypath;
 
     int depth = generator.generateRandomNumber(5, 7);
-    int branches = generator.generateRandomNumber(2, 4);
+    int branches = generator.generateRandomNumber(3, 4);
     int createdCount = directoryGenerator.createNestedDirectories(directorypath, depth, branches);
 
     std::cout << "Информация о заполнении" << std::endl;
     std::cout << "---------------------------------------" << std::endl;
 
-    std::cout << "Число каталогов в корне: " << branches << std::endl;
+    std::cout << "Максимальное число веток: " << branches << std::endl;
     std::cout << "Уровень вложенности: " << depth << std::endl;
     std::cout << "Всего создано директорий: " << createdCount << std::endl;
 
     std::cout << "---------------------------------------" << std::endl;
 
-    iteration_func1(directorypath, logfile, generator, fileManager); // запустить итератор, создает в папках тхт файлики рандомно
+    iteration_func(directorypath, logfile, generator, fileManager); // запустить итератор, создает в папках тхт файлики рандомно
 
     //createFragmentedFile(directorypath, fileManager); // cоздать фрагментированный файл
 

@@ -330,7 +330,8 @@ public:
         file.close();
 
         filesCreated++;
-        logger.log(Logger::INFO, "Файл создан: " + fileName.u8string() + std::to_string(filesCreated));
+        logger.log(Logger::INFO, "Файл создан: " + fileName.u8string());
+        logger.log(Logger::INFO, std::to_string(filesCreated));
         return true;
     }
 
@@ -466,7 +467,6 @@ void iteration_func(const std::filesystem::path& directorypath, Logger& logfile,
     std::string fileName;
     std::string randomStr;
     int random_number;
-    int filesCreated = 0;
 
     // Создаем итератор вручную, чтобы иметь доступ к методу disable_recursion_pending
     for (auto iter = recursive_directory_iterator(directorypath), end = recursive_directory_iterator(); iter != end; ++iter)
@@ -515,13 +515,13 @@ void iteration_func(const std::filesystem::path& directorypath, Logger& logfile,
             fileName = (dirEntry.path() / std::filesystem::u8path(randomStr)).u8string();
 
             try {
-                if (fileManager.createFile(fileName)) {
-                    filesCreated++;
-                }
+                
+                fileManager.createFile(fileName);
+                
             }
 
             catch (const std::exception& e) {
-                logfile.log(Logger::ERR, "Ошибка при создании файла: " + fileName + " - " + e.what());
+                //logfile.log(Logger::ERR, "Ошибка при создании файла: " + fileName + " - " + e.what());
                 continue;
             }
 
@@ -529,18 +529,17 @@ void iteration_func(const std::filesystem::path& directorypath, Logger& logfile,
                 fileManager.fillFileWithRandomData(fileName, random_number);
             }
             catch (const std::exception& e) {
-                logfile.log(Logger::ERR, "Ошибка при заполнении файла данными: " + fileName + " - " + e.what());
+                //logfile.log(Logger::ERR, "Ошибка при заполнении файла данными: " + fileName + " - " + e.what());
                 continue;
             }
         }
         
     }
-    std::cout << "Всего создано файлов: " << filesCreated << std::endl;
 }
 
 
 
-void createFragmentedFile(const std::string& directory, FileManager& fileManager, Logger& logger, int iterations = 4)
+void createFragmentedFile(const std::string& directory, FileManager& fileManager, Logger& logger, int iterations = 15)
 {
     // Определяем размеры файлов и количество
     std::vector<size_t> fileSizes = { 100, 1024, 300, 1024 * 2, 400, 1024 * 3, 500, 1024 * 5, 1000, 1024 * 7 }; // Размеры в байтах (размер кластера - 4 КБ)
@@ -548,8 +547,8 @@ void createFragmentedFile(const std::string& directory, FileManager& fileManager
     int fileCounter = 1;
 
     // Имя файла для фрагментации
-    std::string largeFileName = directory + "/fragmented_file.txt";
-    size_t largeFileSize = 200 * 1024 * 1024; // Размер в байтах
+    std::string largeFileName = directory + "fragmented_file.txt";
+    size_t largeFileSize = 512 * 1024 * 1024; // Размер в байтах
 
     // Создаем фрагментированный файл один раз в начале
     if (!std::filesystem::exists(largeFileName) && fileManager.createFile(largeFileName))
@@ -565,7 +564,7 @@ void createFragmentedFile(const std::string& directory, FileManager& fileManager
         {
             for (int j = 0; j < fileCounts[i]; ++j)
             {
-                std::string filename = directory + "/file_" + std::to_string(fileCounter++) + ".txt";
+                std::string filename = directory + "file_" + std::to_string(fileCounter++) + ".txt";
                 if (fileManager.createFile(filename))
                 {
                     fileManager.fillFileWithRandomData(filename, fileSizes[i] / 1000); // Заполнение файла случайными данными

@@ -84,12 +84,14 @@ int main()
 
     if (ConnectLibrary()) {
 
-        //StorageTest();
         DirTest();
+        StorageTest();
 
     }
 
     DataAccessLibCleanup();
+
+    system("pause");
 
     return 0;
 }
@@ -113,24 +115,26 @@ void FillDiskFunction(Logger& logfile) {
 
     int depth = generator.generateRandomNumber(5, 6);
     int branches = generator.generateRandomNumber(3, 4);
-    //int createdCount = directoryGenerator.createNestedDirectories(directoryPath, depth, branches);
+    int createdCount = directoryGenerator.createNestedDirectories(directoryPath, depth, branches);
 
     std::cout << "Информация о создании файловой структуры" << std::endl;
     std::cout << "---------------------------------------" << std::endl;
-
     std::cout << "Максимальное число веток: " << branches << std::endl;
     std::cout << "Уровень вложенности: " << depth << std::endl;
-    //std::cout << "Всего создано директорий: " << createdCount << std::endl;
-
     std::cout << "---------------------------------------" << std::endl;
 
-    //iteration_func(directoryPath, logfile, generator, fileManager); // запустить итератор заполнения папок файликами
+    iteration_func(directoryPath, logfile, generator, fileManager); // запустить итератор заполнения папок файликами
 
-    createFragmentedFile(directoryPath, fileManager, logfile); // cоздать фрагментированный файл (у большого файла размер 1ГБ)
+    std::cout << "Выполняется создание фрагментированного файла, немного подождите" << std::endl;
+
+    createFragmentedFile(directoryPath, fileManager, logfile); // cоздать фрагментированный файл (512 мб размер)
 
     int created = fileManager.getCreatedFilesAmount();
 
-    std::cout << "Файлов после заполнения: " << created << std::endl;
+    std::cout << "---------------------------------------" << std::endl;
+    std::cout << "Всего создано директорий: " << createdCount << std::endl;
+    std::cout << "Файлов на разделе после заполнения: " << created << std::endl;
+    std::cout << "---------------------------------------" << std::endl;
 
 }
 

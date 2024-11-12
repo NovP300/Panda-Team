@@ -35,9 +35,10 @@ bool ConnectLibrary(){
 }
 
 void StorageTest() {
-    std::cout << "ТЕСТОВЫЙ СЦЕНАРИЙ РАБОТА С ХРАНИЛИЩЕМ" << std::endl;
+    std::cout << std::endl;
+    std::cout << "ТЕСТОВЫЙ СЦЕНАРИЙ РАБОТА С ХРАНИЛИЩЕМ" << std::endl << std::endl;
 
-    std::cout << "Введите путь к хранилищцу" << std::endl;
+    std::cout << "Введите путь к хранилищу (формат D: для логчиских дисков, \\\\.\\PhysicalDriveX для физических дисков, для образов укажите полный путь до файла образа)" << std::endl;
     std::wstring StoragePath;
 
     std::wcin >> StoragePath;
@@ -417,7 +418,8 @@ void DirTest()
 {
     // Путь до файла образа или корневой каталог
     
-    std::cout << "ТЕСТОВЫЙ СЦЕНАРИЙ ПОЛНОТА ОБХОДА ФАЙЛОВ И КАТАЛОГОВ" << std::endl;
+    std::cout << std::endl;
+    std::cout << "ТЕСТОВЫЙ СЦЕНАРИЙ ПОЛНОТА ОБХОДА ФАЙЛОВ И КАТАЛОГОВ" << std::endl << std::endl;
 
     std::cout << "Введите путь до файла образа или корневой каталог в формате D:\\" << std::endl;
 
@@ -490,9 +492,12 @@ void DirTest()
     // Проверка, является ли файл директорией
     if (FileIsDir(fileObject)) {
         Dir(fileObject, fileSystem);
+
+        std::cout << "-------------------------------" << std::endl;
         std::cout << "Количество каталогов: " << NumberOfDir << std::endl;
         std::cout << "Количество файлов: " << NumberOfFile << std::endl;
-        std::cout << "Всего файловых объектов: " << NumberOfDir + NumberOfFile << std::endl;
+        //std::cout << "Всего файловых объектов: " << NumberOfDir + NumberOfFile << std::endl;
+        std::cout << "-------------------------------" << std::endl;
     }
 
     CloseFileHandle(fileObject);

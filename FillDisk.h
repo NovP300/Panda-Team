@@ -310,9 +310,12 @@ class FileManager
 private:
     RandomGenerator& randomGen; ///< Экземпляр класса для генерации случайных данных
     Logger& logger;
+    int filesCreated = 0;
 
 public:
     FileManager(Logger& logger, RandomGenerator& randomGen) : logger(logger), randomGen(randomGen) {}
+
+
 
     /// Метод для создания файла
     bool createFile(const std::string& p)
@@ -325,7 +328,9 @@ public:
             return false;
         }
         file.close();
-        logger.log(Logger::INFO, "Файл создан: " + fileName.u8string());
+
+        filesCreated++;
+        logger.log(Logger::INFO, "Файл создан: " + fileName.u8string() + std::to_string(filesCreated));
         return true;
     }
 
@@ -338,7 +343,9 @@ public:
         {
             if (std::filesystem::remove(fileName))
             {
-                logger.log(Logger::INFO, "Файл удален: " + fileName.u8string());
+                filesCreated--;
+                logger.log(Logger::INFO, "Файл удален: " + fileName.u8string() + std::to_string(filesCreated));
+                
                 return true;
             }
             else
@@ -377,6 +384,10 @@ public:
         logger.log(Logger::INFO, "Файл заполнен случайными данными: " + fileName.u8string());
         return true;
     }
+
+    int getCreatedFilesAmount() {
+        return filesCreated;
+    }
 };
 
 
@@ -402,14 +413,17 @@ public:
         @param requiredSpace Необходимое количество свободного места в байтах.
         @return true, если на диске достаточно места, иначе false.
      */
-    bool checkDiskSpace(const std::string& path, uintmax_t requiredSpace)
+    bool checkDiskSpace(const std::string& path, uintmax_t requiredSpace = 0)
     {
         try
         {
             std::filesystem::space_info diskInfo = std::filesystem::space(path);
 
             std::cout << "Свободного места: " << diskInfo.available << " байт" << std::endl;
-            std::cout << "Необходимо места: " << requiredSpace << " байт" << std::endl;
+
+            if (requiredSpace != 0) {
+                std::cout << "Необходимо места: " << requiredSpace << " байт" << std::endl;
+            }
 
             if (diskInfo.available >= requiredSpace)
             {
@@ -452,6 +466,7 @@ void iteration_func(const std::filesystem::path& directorypath, Logger& logfile,
     std::string fileName;
     std::string randomStr;
     int random_number;
+    int filesCreated = 0;
 
     // Создаем итератор вручную, чтобы иметь доступ к методу disable_recursion_pending
     for (auto iter = recursive_directory_iterator(directorypath), end = recursive_directory_iterator(); iter != end; ++iter)
@@ -486,35 +501,41 @@ void iteration_func(const std::filesystem::path& directorypath, Logger& logfile,
             continue;
         }
 
-        //logfile.log(Logger::DEBUG, "Директория найдена: " + dirEntry.path().u8string());
+        
 
-        // Создание файлов в случайных подкаталогах
-        if (generator.generateRandomNumber(0, 4) != 0)
+  
+        
+        // Создание случайного количества файлов в текущем каталоге
+
+        int fileCount = generator.generateRandomNumber(0, 10); // Генерация случайного числа файлов от 0 до 10
+        for (int i = 0; i < fileCount; ++i)
         {
             random_number = generator.generateRandomNumber(1, 10);
             randomStr = generator.generateRandomString(random_number) + filetype(random_number % 6);
             fileName = (dirEntry.path() / std::filesystem::u8path(randomStr)).u8string();
 
             try {
-                fileManager.createFile(fileName);
-            }
-            catch (const std::exception& e) {
-                //logfile.log(Logger::ERR, "Ошибка создания файла: " + fileName + ". Ошибка: " + e.what());
-                continue;
+                if (fileManager.createFile(fileName)) {
+                    filesCreated++;
+                }
             }
 
-            randomStr = generator.generateRandomString(random_number);
+            catch (const std::exception& e) {
+                logfile.log(Logger::ERR, "Ошибка при создании файла: " + fileName + " - " + e.what());
+                continue;
+            }
 
             try {
                 fileManager.fillFileWithRandomData(fileName, random_number);
-                //logfile.log(Logger::DEBUG, "Файл заполнен данными: " + fileName);
             }
             catch (const std::exception& e) {
-                //logfile.log(Logger::ERR, "Ошибка при записи в файл: " + fileName + ". Ошибка: " + e.what());
+                logfile.log(Logger::ERR, "Ошибка при заполнении файла данными: " + fileName + " - " + e.what());
                 continue;
             }
         }
+        
     }
+    std::cout << "Всего создано файлов: " << filesCreated << std::endl;
 }
 
 
@@ -568,16 +589,17 @@ void createFragmentedFile(const std::string& directory, FileManager& fileManager
         int filesToRemove = 20 + (iter * 5); // Увеличиваем число удалений с каждой итерацией
         for (int i = 0; i < filesToRemove && i < files.size(); ++i)
         {
-            std::remove(files[i].c_str());
+            fileManager.deleteFile(files[i]);
         }
 
         // Шаг 3: Добавление данных в fragmented_file.txt
-        fileManager.fillFileWithRandomData(largeFileName, (largeFileSize / iterations) / 800); // Добавляем данные на каждой итерации
+        fileManager.fillFileWithRandomData(largeFileName, (largeFileSize / iterations) / 8000); // Добавляем данные на каждой итерации
 
         std::cout << "Создано - " << std::reduce(fileCounts.begin(), fileCounts.end()) << " файлов;     ";
         std::cout << "Удалено - " << filesToRemove << " файлов" << std::endl;
     }
-    fileManager.fillFileWithRandomData(largeFileName, (largeFileSize / 100 - largeFileSize / 800)); // Добавляем данные на каждой итерации
+
+    fileManager.fillFileWithRandomData(largeFileName, (largeFileSize / 1000 - largeFileSize / 8000)); // Добавляем данные на каждой итерации
 
 }
 
@@ -768,6 +790,7 @@ public:
 
         // Выбираем первую свободную букву
         mountedDriveLetter = freeDriveLetters[0];
+        
 
         std::string vdiskPath;
         std::cout << "Укажите путь до образа виртуального диска: "; // Вводим путь до образа
@@ -775,12 +798,14 @@ public:
 
         lastVdiskPath = vdiskPath; // Сохраняем путь к смонтированному диску
 
+        std::cout << "Выбрана буква для монтирования: " << mountedDriveLetter << std::endl;
+
         std::string command = "diskpart /s mount_script.txt";
 
         // Создаем временный файл с командами для diskpart
         std::ofstream script("mount_script.txt");
         if (script.is_open()) {
-            script << "select vdisk file=" << vdiskPath << "\"\n";
+            script << "select vdisk file=" << vdiskPath << "\n";
             script << "attach vdisk\n";
             script << "assign letter=" << mountedDriveLetter << "\n";  // Присваиваем букву для монтирования
             script.close();

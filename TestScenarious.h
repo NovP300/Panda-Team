@@ -35,13 +35,13 @@ bool ConnectLibrary(){
 }
 
 void StorageTest() {
-    std::cout << "Сценарий работы с хранилищем" << std::endl;
+    std::cout << "ТЕСТОВЫЙ СЦЕНАРИЙ РАБОТА С ХРАНИЛИЩЕМ" << std::endl;
 
     std::cout << "Введите путь к хранилищцу" << std::endl;
     std::wstring StoragePath;
 
-    std::getline(std::wcin, StoragePath);
-    //StoragePath.pop_back();
+    std::wcin >> StoragePath;
+
 
     StorageHandle storage = CreateStorageHandle(StoragePath.c_str());
     if (storage != STORAGE_ERROR) {
@@ -150,7 +150,7 @@ void StorageTest() {
                 std::cout << "Ошибка создания итератора хранилища" << std::endl;
                 ErrorCheck();
             }
-
+            /*
             // Считывание раздела хранилища в файл по его номеру
             StorageBlockFirst(it);
             std::cout << "Введите номер раздела, который необходимо считать в буфер или нажмите ENTER, если хотите пропустить этот шаг" << std::endl;
@@ -197,7 +197,7 @@ void StorageTest() {
                     ErrorCheck();
                 }
                 delete PartitionInfo;
-            }
+            } */
         }
         else {
             std::cout << "Ошибка получения размера сектора хранилища" << std::endl;
@@ -399,16 +399,10 @@ int Dir(FileHandle fileObject, FileSystemHandle fileSystem)
 
                             GetFileNameW(dirHandle, fileName); // Запоминаем имя файла через массив
 
-                            size_t length = wcslen(fileName) + 1;
-                            char* fileNameChar = new char[length];
-                            size_t convertedChars = 0;
-
-                            wcstombs_s(&convertedChars, fileNameChar, length, fileName, length-1);
-
                     
 
                             //std::wcout << L"\t" << fileName << L"  " << std::endl; // Выводим имя файла как wstring
-                            std::cout << "\t" << fileNameChar << " " << std::endl;
+                            //std::cout << "\t" << fileNameChar << " " << std::endl;
                         }
                     }
                 }
@@ -422,14 +416,15 @@ int Dir(FileHandle fileObject, FileSystemHandle fileSystem)
 void DirTest()
 {
     // Путь до файла образа или корневой каталог
-    std::cout << "Введите путь до файла образа или корневой каталог" << std::endl;
+    
+    std::cout << "ТЕСТОВЫЙ СЦЕНАРИЙ ПОЛНОТА ОБХОДА ФАЙЛОВ И КАТАЛОГОВ" << std::endl;
+
+    std::cout << "Введите путь до файла образа или корневой каталог в формате D:\\" << std::endl;
 
     std::wstring imageStoragePath;
-    std::getline(std::wcin, imageStoragePath);
-    //imageStoragePath.pop_back();
-    
-    //std::wstring imageStoragePath(L"E:\\FAT_exFAT\\FAT12.vhd");
 
+    std::wcin >> imageStoragePath;
+  
     StorageHandle dataStorage = CreateStorageHandle(imageStoragePath.c_str());
 
     if (dataStorage == STORAGE_ERROR) {
